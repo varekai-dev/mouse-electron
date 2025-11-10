@@ -1,7 +1,8 @@
 export interface ElectronAPI {
   startMouseMove: (
     inactivitySeconds?: number,
-    range?: { from: number; to: number }
+    range?: { from: number; to: number },
+    keyboardActivity?: boolean
   ) => Promise<{ success: boolean; error?: string; message?: string }>;
   stopMouseMove: () => Promise<{ success: boolean }>;
   getMouseMoveStatus: () => Promise<{ isMoving: boolean }>;

@@ -7,6 +7,7 @@ const STORAGE_KEYS = {
   inactivitySeconds: "moveMouse_inactivitySeconds",
   rangeFrom: "moveMouse_rangeFrom",
   rangeTo: "moveMouse_rangeTo",
+  keyboardActivity: "moveMouse_keyboardActivity",
 };
 
 const getStoredValue = (key: string, defaultValue: number): number => {
@@ -24,6 +25,28 @@ const getStoredValue = (key: string, defaultValue: number): number => {
 };
 
 const setStoredValue = (key: string, value: number): void => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, value.toString());
+  } catch (error) {
+    console.error(`Error saving ${key} to localStorage:`, error);
+  }
+};
+
+const getStoredBoolean = (key: string, defaultValue: boolean): boolean => {
+  if (typeof window === "undefined") return defaultValue;
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored !== null) {
+      return stored === "true";
+    }
+  } catch (error) {
+    console.error(`Error reading ${key} from localStorage:`, error);
+  }
+  return defaultValue;
+};
+
+const setStoredBoolean = (key: string, value: boolean): void => {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(key, value.toString());
@@ -60,6 +83,9 @@ function TrayPopup() {
   );
   const [rangeToDisplay, setRangeToDisplay] = useState(() =>
     getStoredValue(STORAGE_KEYS.rangeTo, 3).toString()
+  );
+  const [keyboardActivity, setKeyboardActivity] = useState(() =>
+    getStoredBoolean(STORAGE_KEYS.keyboardActivity, false)
   );
 
   useEffect(() => {
@@ -109,7 +135,8 @@ function TrayPopup() {
             : undefined;
         const result = await window.electronAPI.startMouseMove(
           inactivitySeconds,
-          range
+          range,
+          keyboardActivity
         );
         if (result.success) {
           setIsEnabled(true);
@@ -176,6 +203,25 @@ function TrayPopup() {
           >
             {isEnabled ? "Active" : "Inactive"}
           </span>
+        </div>
+
+        {/* Keyboard Activity Toggle */}
+        <div className="flex items-center justify-between">
+          <label
+            htmlFor="tray-keyboard-activity"
+            className="text-xs font-medium text-foreground cursor-pointer"
+          >
+            Include Keyboard Activity
+          </label>
+          <Switch
+            id="tray-keyboard-activity"
+            checked={keyboardActivity}
+            onCheckedChange={(checked) => {
+              setKeyboardActivity(checked);
+              setStoredBoolean(STORAGE_KEYS.keyboardActivity, checked);
+            }}
+            disabled={isEnabled || isLoading || !apiAvailable}
+          />
         </div>
 
         {/* Toggle */}
@@ -344,7 +390,9 @@ function TrayPopup() {
         <div className="pt-1 border-t border-border">
           <p className="text-xs text-muted-foreground">
             {isEnabled
-              ? `Moving mouse after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly`
+              ? keyboardActivity
+                ? `Will randomly move mouse or type a letter after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly`
+                : `Moving mouse after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly`
               : "Enable to start moving mouse after inactivity"}
           </p>
         </div>

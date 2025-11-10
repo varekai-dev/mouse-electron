@@ -10,7 +10,7 @@ import {
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 import { exec } from "child_process";
-import { mouse, Point } from "@nut-tree-fork/nut-js";
+import { mouse, Point, keyboard } from "@nut-tree-fork/nut-js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,6 +29,7 @@ let isProgrammaticMove = false;
 let isQuitting = false;
 let keyboardActivityListeners: Array<() => void> = [];
 let lastKeyboardCheckTime = Date.now();
+let includeKeyboardActivity = false;
 
 const isDev = process.env.NODE_ENV !== "production" && !app.isPackaged;
 
@@ -90,12 +91,54 @@ async function performRandomMouseMove() {
 
     await moveMouseSmoothly(clampedX, clampedY);
 
-    // Schedule next move with random interval if range is set
+    // Schedule next action with random interval if range is set
+    // Use scheduleNextAction if keyboard activity is enabled, otherwise scheduleNextMove
     if (moveIntervalRange && isMoving) {
-      scheduleNextMove();
+      if (includeKeyboardActivity) {
+        scheduleNextAction();
+      } else {
+        scheduleNextMove();
+      }
     }
   } catch (error) {
     console.error("Error moving mouse:", error);
+  }
+}
+
+async function performRandomKeyboardInput() {
+  if (!isMoving) return;
+
+  try {
+    // Generate a random English letter (a-z)
+    const randomLetter = String.fromCharCode(97 + Math.floor(Math.random() * 26));
+    
+    // Type the letter
+    await keyboard.type(randomLetter);
+    
+    // Schedule next action with random interval if range is set
+    if (moveIntervalRange && isMoving) {
+      scheduleNextAction();
+    }
+  } catch (error) {
+    console.error("Error typing keyboard input:", error);
+  }
+}
+
+async function performRandomAction() {
+  if (!isMoving) return;
+
+  if (includeKeyboardActivity) {
+    // Randomly choose between mouse move and keyboard input
+    const shouldMoveMouse = Math.random() < 0.5;
+    
+    if (shouldMoveMouse) {
+      await performRandomMouseMove();
+    } else {
+      await performRandomKeyboardInput();
+    }
+  } else {
+    // Only move mouse
+    await performRandomMouseMove();
   }
 }
 
@@ -117,6 +160,28 @@ function scheduleNextMove() {
   nextMoveTimeout = setTimeout(async () => {
     if (isMoving) {
       await performRandomMouseMove();
+    }
+  }, randomInterval * 1000);
+}
+
+function scheduleNextAction() {
+  if (!isMoving || !moveIntervalRange) return;
+
+  // Clear any existing timeout
+  if (nextMoveTimeout) {
+    clearTimeout(nextMoveTimeout);
+    nextMoveTimeout = null;
+  }
+
+  // Generate random interval within the range
+  const minSeconds = Math.min(moveIntervalRange.from, moveIntervalRange.to);
+  const maxSeconds = Math.max(moveIntervalRange.from, moveIntervalRange.to);
+  const randomInterval = minSeconds + Math.random() * (maxSeconds - minSeconds);
+
+  // Schedule the next action (mouse move or keyboard input)
+  nextMoveTimeout = setTimeout(async () => {
+    if (isMoving) {
+      await performRandomAction();
     }
   }, randomInterval * 1000);
 }
@@ -264,23 +329,23 @@ function startActivityMonitoring() {
     const hasRecentActivity = await checkUserActivity();
 
     if (!hasRecentActivity) {
-      // No recent activity detected, safe to move mouse
+      // No recent activity detected, safe to perform action
       const timeSinceLastActivity = (Date.now() - lastActivityTime) / 1000;
       if (timeSinceLastActivity >= inactivityThreshold) {
         // If range is set, use random interval scheduling
         if (moveIntervalRange) {
           // Only schedule if not already scheduled
           if (!nextMoveTimeout) {
-            // Move immediately, then schedule next move
-            await performRandomMouseMove();
+            // Perform action immediately (mouse move or keyboard input), then schedule next action
+            await performRandomAction();
           }
         } else {
-          // Old behavior: move immediately
-          await performRandomMouseMove();
+          // Old behavior: perform action immediately
+          await performRandomAction();
         }
       }
     } else {
-      // User is active, cancel any scheduled moves
+      // User is active, cancel any scheduled actions
       if (nextMoveTimeout) {
         clearTimeout(nextMoveTimeout);
         nextMoveTimeout = null;
@@ -304,12 +369,14 @@ function stopActivityMonitoring() {
 
 function startMouseMovement(
   threshold: number = 60,
-  range?: { from: number; to: number }
+  range?: { from: number; to: number },
+  keyboardActivity: boolean = false
 ) {
   if (isMoving) return;
 
   inactivityThreshold = threshold;
   moveIntervalRange = range && range.from > 0 && range.to > 0 ? range : null;
+  includeKeyboardActivity = keyboardActivity;
   lastActivityTime = Date.now();
   isMoving = true;
 
@@ -547,7 +614,8 @@ ipcMain.handle(
   async (
     _event,
     inactivitySeconds?: number,
-    range?: { from: number; to: number }
+    range?: { from: number; to: number },
+    keyboardActivity?: boolean
   ) => {
     try {
       // Check permissions first
@@ -574,7 +642,7 @@ ipcMain.handle(
         };
       }
 
-      startMouseMovement(threshold, validRange);
+      startMouseMovement(threshold, validRange, keyboardActivity || false);
       return { success: true };
     } catch (error: any) {
       return {
