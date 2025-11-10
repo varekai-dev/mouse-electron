@@ -261,48 +261,75 @@ function closePopupWindow() {
 }
 
 function createTray() {
-  // Create a simple 16x16 bitmap icon programmatically
-  const size = 16;
-  const buffer = Buffer.alloc(size * size * 4); // RGBA
-
-  // Create a simple icon pattern (blue circle on white background)
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const idx = (y * size + x) * 4;
-      const centerX = size / 2;
-      const centerY = size / 2;
-      const distance = Math.sqrt(
-        Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
-      );
-
-      if (distance < 6) {
-        // Inner circle (white)
-        if (distance < 3) {
-          buffer[idx] = 255; // R
-          buffer[idx + 1] = 255; // G
-          buffer[idx + 2] = 255; // B
-          buffer[idx + 3] = 255; // A
-        } else {
-          // Outer circle (blue)
-          buffer[idx] = 74; // R
-          buffer[idx + 1] = 144; // G
-          buffer[idx + 2] = 226; // B
-          buffer[idx + 3] = 255; // A
-        }
-      } else {
-        // Background (transparent)
-        buffer[idx] = 0; // R
-        buffer[idx + 1] = 0; // G
-        buffer[idx + 2] = 0; // B
-        buffer[idx + 3] = 0; // A (transparent)
-      }
-    }
+  // Load icon from file
+  let iconPath: string;
+  
+  if (isDev) {
+    // In development, look for icon in project root assets folder
+    iconPath = join(__dirname, "../../assets/icons/icon.png");
+  } else {
+    // In production, look for icon in app resources
+    iconPath = join(__dirname, "../assets/icons/icon.png");
   }
 
-  const icon = nativeImage.createFromBuffer(buffer, {
-    width: size,
-    height: size,
-  });
+  // Fallback to programmatically created icon if file doesn't exist
+  let icon: Electron.NativeImage;
+  
+  try {
+    icon = nativeImage.createFromPath(iconPath);
+    // If the image is empty or invalid, throw error to use fallback
+    if (icon.isEmpty()) {
+      throw new Error("Icon file is empty");
+    }
+    // Resize to appropriate tray icon size (typically 16x16 or 22x22 on macOS)
+    const size = process.platform === "darwin" ? 22 : 16;
+    icon = icon.resize({ width: size, height: size });
+  } catch (error) {
+    console.warn(`Could not load icon from ${iconPath}, using fallback:`, error);
+    // Fallback: Create a simple 16x16 bitmap icon programmatically
+    const size = 16;
+    const buffer = Buffer.alloc(size * size * 4); // RGBA
+
+    // Create a simple icon pattern (blue circle on white background)
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const idx = (y * size + x) * 4;
+        const centerX = size / 2;
+        const centerY = size / 2;
+        const distance = Math.sqrt(
+          Math.pow(x - centerX, 2) + Math.pow(y - centerY, 2)
+        );
+
+        if (distance < 6) {
+          // Inner circle (white)
+          if (distance < 3) {
+            buffer[idx] = 255; // R
+            buffer[idx + 1] = 255; // G
+            buffer[idx + 2] = 255; // B
+            buffer[idx + 3] = 255; // A
+          } else {
+            // Outer circle (blue)
+            buffer[idx] = 74; // R
+            buffer[idx + 1] = 144; // G
+            buffer[idx + 2] = 226; // B
+            buffer[idx + 3] = 255; // A
+          }
+        } else {
+          // Background (transparent)
+          buffer[idx] = 0; // R
+          buffer[idx + 1] = 0; // G
+          buffer[idx + 2] = 0; // B
+          buffer[idx + 3] = 0; // A (transparent)
+        }
+      }
+    }
+
+    icon = nativeImage.createFromBuffer(buffer, {
+      width: size,
+      height: size,
+    });
+  }
+
   tray = new Tray(icon);
 
   tray.setToolTip("Mouse Mover - Click to open settings");

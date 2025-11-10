@@ -43,5 +43,27 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "tailwind-merge": "^2.2.0"
+  },
+  "build": {
+    "appId": "com.mousemover.app",
+    "productName": "Mouse Mover",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "assets/icons/**/*"
+    ],
+    "mac": {
+      "icon": "assets/icons/icon.png",
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "icon": "assets/icons/icon.png"
+    },
+    "linux": {
+      "icon": "assets/icons/icon.png"
+    }
   }
 }
