@@ -168,8 +168,8 @@ function TrayPopup() {
   };
 
   return (
-    <div className="w-full h-auto min-h-fit bg-background rounded-lg shadow-lg border border-border flex flex-col">
-      <div className="px-4 pt-4 pb-4 space-y-3">
+    <div className="w-full h-[440px] max-h-[440px] bg-background rounded-lg shadow-lg border border-border flex flex-col overflow-hidden">
+      <div className="px-4 pt-4 pb-4 space-y-3 overflow-y-auto custom-scrollbar flex-1 min-h-0">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -194,15 +194,31 @@ function TrayPopup() {
         </div>
 
         {/* Status */}
-        <div className="flex items-center justify-between py-2 border-b border-border">
-          <span className="text-xs text-muted-foreground">Status</span>
-          <span
-            className={`text-xs font-medium ${
-              isEnabled ? "text-primary" : "text-muted-foreground"
-            }`}
-          >
-            {isEnabled ? "Active" : "Inactive"}
-          </span>
+        <div className="space-y-2 py-2 border-b border-border">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">Status</span>
+            <span
+              className={`text-xs font-medium ${
+                isEnabled ? "text-primary" : "text-muted-foreground"
+              }`}
+            >
+              {isEnabled ? "Active" : "Inactive"}
+            </span>
+          </div>
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor="tray-toggle"
+              className="text-xs font-medium text-foreground cursor-pointer"
+            >
+              Enable Mouse Movement
+            </label>
+            <Switch
+              id="tray-toggle"
+              checked={isEnabled}
+              onCheckedChange={handleToggle}
+              disabled={isLoading || !apiAvailable}
+            />
+          </div>
         </div>
 
         {/* Keyboard Activity Toggle */}
@@ -221,22 +237,6 @@ function TrayPopup() {
               setStoredBoolean(STORAGE_KEYS.keyboardActivity, checked);
             }}
             disabled={isEnabled || isLoading || !apiAvailable}
-          />
-        </div>
-
-        {/* Toggle */}
-        <div className="flex items-center justify-between">
-          <label
-            htmlFor="tray-toggle"
-            className="text-xs font-medium text-foreground cursor-pointer"
-          >
-            Enable Mouse Movement
-          </label>
-          <Switch
-            id="tray-toggle"
-            checked={isEnabled}
-            onCheckedChange={handleToggle}
-            disabled={isLoading || !apiAvailable}
           />
         </div>
 

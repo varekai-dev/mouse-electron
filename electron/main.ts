@@ -110,11 +110,13 @@ async function performRandomKeyboardInput() {
 
   try {
     // Generate a random English letter (a-z)
-    const randomLetter = String.fromCharCode(97 + Math.floor(Math.random() * 26));
-    
+    const randomLetter = String.fromCharCode(
+      97 + Math.floor(Math.random() * 26)
+    );
+
     // Type the letter
     await keyboard.type(randomLetter);
-    
+
     // Schedule next action with random interval if range is set
     if (moveIntervalRange && isMoving) {
       scheduleNextAction();
@@ -130,7 +132,7 @@ async function performRandomAction() {
   if (includeKeyboardActivity) {
     // Randomly choose between mouse move and keyboard input
     const shouldMoveMouse = Math.random() < 0.5;
-    
+
     if (shouldMoveMouse) {
       await performRandomMouseMove();
     } else {
@@ -230,7 +232,7 @@ async function checkUserActivity(): Promise<boolean> {
 
 function checkKeyboardActivity(): Promise<boolean> {
   return new Promise((resolve) => {
-    if (process.platform === 'darwin') {
+    if (process.platform === "darwin") {
       // On macOS, use ioreg to check for keyboard activity
       // Check for keyboard devices and their idle time
       exec(
@@ -240,7 +242,7 @@ function checkKeyboardActivity(): Promise<boolean> {
             resolve(false);
             return;
           }
-          
+
           try {
             // HIDIdleTime is in nanoseconds, convert to seconds
             const idleTimeNs = parseInt(stdout.trim(), 10);
@@ -248,9 +250,9 @@ function checkKeyboardActivity(): Promise<boolean> {
               resolve(false);
               return;
             }
-            
+
             const idleTimeSeconds = idleTimeNs / 1_000_000_000;
-            
+
             // If idle time is less than 1 second, keyboard was recently active
             if (idleTimeSeconds < 1.0) {
               const now = Date.now();
@@ -280,7 +282,7 @@ function checkKeyboardActivity(): Promise<boolean> {
 
 function registerKeyboardActivityListeners() {
   // Poll for keyboard activity using system commands
-  if (process.platform === 'darwin') {
+  if (process.platform === "darwin") {
     const keyboardCheckInterval = setInterval(() => {
       checkKeyboardActivity().catch(() => {
         // Ignore errors
@@ -291,13 +293,14 @@ function registerKeyboardActivityListeners() {
       clearInterval(keyboardCheckInterval);
     });
   }
-  
+
   // Also register a global shortcut as a fallback for all platforms
   // This won't catch all keys but will help detect some activity
-  const fallbackShortcut = process.platform === 'darwin' 
-    ? 'Command+Shift+Control+Alt+Space'
-    : 'CommandOrControl+Shift+Alt+Space';
-  
+  const fallbackShortcut =
+    process.platform === "darwin"
+      ? "Command+Shift+Control+Alt+Space"
+      : "CommandOrControl+Shift+Alt+Space";
+
   try {
     globalShortcut.register(fallbackShortcut, () => {
       updateActivityTime();
@@ -407,7 +410,7 @@ function getTrayPosition() {
 
   // Adjust if popup would go off screen
   const popupWidth = 320;
-  const popupHeight = 400;
+  const popupHeight = 440;
 
   if (x - popupWidth / 2 < workArea.x) {
     x = workArea.x + popupWidth / 2;
@@ -431,7 +434,7 @@ function createPopupWindow() {
 
   const trayPos = getTrayPosition();
   const popupWidth = 320;
-  const popupHeight = 400;
+  const popupHeight = 440;
 
   popupWindow = new BrowserWindow({
     width: popupWidth,

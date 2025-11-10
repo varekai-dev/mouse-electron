@@ -175,8 +175,8 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-8">
-      <div className="bg-card border border-border rounded-lg shadow-lg p-8 w-full max-w-md">
-        <div className="flex flex-col items-center space-y-6">
+      <div className="bg-card border border-border rounded-lg shadow-lg w-full max-w-md h-[90vh] max-h-[90vh] flex flex-col overflow-hidden">
+        <div className="flex flex-col items-center space-y-6 p-8 overflow-y-auto custom-scrollbar flex-1 min-h-0">
           <div className="flex items-center space-x-3">
             <Activity
               className={`h-8 w-8 ${
@@ -186,6 +186,21 @@ function App() {
               }`}
             />
             <h1 className="text-2xl font-bold text-foreground">Move Mouse</h1>
+          </div>
+
+          <div className="flex items-center space-x-3 w-full justify-between border-b border-border pb-4">
+            <label
+              htmlFor="mouse-toggle"
+              className="text-sm font-medium text-foreground cursor-pointer"
+            >
+              Enable Mouse Movement
+            </label>
+            <Switch
+              id="mouse-toggle"
+              checked={isEnabled}
+              onCheckedChange={handleToggle}
+              disabled={isLoading || !apiAvailable}
+            />
           </div>
 
           <div className="flex flex-col items-center space-y-4 w-full">
@@ -351,21 +366,6 @@ function App() {
                   setStoredBoolean(STORAGE_KEYS.keyboardActivity, checked);
                 }}
                 disabled={isEnabled || isLoading || !apiAvailable}
-              />
-            </div>
-
-            <div className="flex items-center space-x-3 w-full justify-between">
-              <label
-                htmlFor="mouse-toggle"
-                className="text-sm font-medium text-foreground cursor-pointer"
-              >
-                {isEnabled ? "Mouse movement is ON" : "Mouse movement is OFF"}
-              </label>
-              <Switch
-                id="mouse-toggle"
-                checked={isEnabled}
-                onCheckedChange={handleToggle}
-                disabled={isLoading || !apiAvailable}
               />
             </div>
 
