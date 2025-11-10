@@ -1,0 +1,144 @@
+import { useState, useEffect } from 'react'
+import { Switch } from '@/components/ui/switch'
+import { Activity, AlertCircle } from 'lucide-react'
+
+function App() {
+  const [isEnabled, setIsEnabled] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [apiAvailable, setApiAvailable] = useState(false)
+  const [permissionError, setPermissionError] = useState<string | null>(null)
+
+  useEffect(() => {
+    // Wait for Electron API to be available
+    const checkAPI = () => {
+      if (window.electronAPI) {
+        setApiAvailable(true)
+        // Check accessibility permissions
+        window.electronAPI.checkAccessibilityPermissions().then(({ hasPermission, error }) => {
+          if (!hasPermission) {
+            setPermissionError(error || 'Accessibility permissions are required')
+          }
+        }).catch((error) => {
+          console.error('Error checking accessibility permissions:', error)
+        })
+        
+        window.electronAPI.getMouseMoveStatus().then(({ isMoving }) => {
+          setIsEnabled(isMoving)
+        }).catch((error) => {
+          console.error('Error getting mouse move status:', error)
+        })
+      } else {
+        // Retry after a short delay
+        setTimeout(checkAPI, 100)
+      }
+    }
+    checkAPI()
+  }, [])
+
+  const handleToggle = async (checked: boolean) => {
+    if (!window.electronAPI) {
+      console.error('Electron API not available')
+      console.error('window.electronAPI:', window.electronAPI)
+      console.error('window:', window)
+      return
+    }
+
+    setIsLoading(true)
+    setPermissionError(null)
+    
+    try {
+      if (checked) {
+        const result = await window.electronAPI.startMouseMove()
+        if (result.success) {
+          setIsEnabled(true)
+        } else {
+          if (result.error === 'ACCESSIBILITY_PERMISSION_REQUIRED') {
+            setPermissionError(result.message || 'Accessibility permissions are required')
+          } else {
+            setPermissionError(result.message || 'Failed to start mouse movement')
+          }
+          setIsEnabled(false)
+        }
+      } else {
+        await window.electronAPI.stopMouseMove()
+        setIsEnabled(false)
+      }
+    } catch (error) {
+      console.error('Error toggling mouse movement:', error)
+      setPermissionError('An unexpected error occurred')
+      setIsEnabled(false)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-8">
+      <div className="bg-card border border-border rounded-lg shadow-lg p-8 w-full max-w-md">
+        <div className="flex flex-col items-center space-y-6">
+          <div className="flex items-center space-x-3">
+            <Activity 
+              className={`h-8 w-8 ${isEnabled ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} 
+            />
+            <h1 className="text-2xl font-bold text-foreground">
+              Mouse Mover
+            </h1>
+          </div>
+          
+          <div className="flex flex-col items-center space-y-4 w-full">
+            <div className="flex items-center space-x-3 w-full justify-between">
+              <label 
+                htmlFor="mouse-toggle" 
+                className="text-sm font-medium text-foreground cursor-pointer"
+              >
+                {isEnabled ? 'Mouse movement is ON' : 'Mouse movement is OFF'}
+              </label>
+              <Switch
+                id="mouse-toggle"
+                checked={isEnabled}
+                onCheckedChange={handleToggle}
+                disabled={isLoading || !apiAvailable}
+              />
+            </div>
+            
+            {permissionError && (
+              <div className="w-full p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+                <div className="flex items-start space-x-2">
+                  <AlertCircle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-xs font-medium text-destructive mb-1">
+                      Accessibility Permission Required
+                    </p>
+                    <p className="text-xs text-muted-foreground mb-2">
+                      {permissionError}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      To grant permissions:
+                    </p>
+                    <ol className="text-xs text-muted-foreground list-decimal list-inside mt-1 space-y-0.5">
+                      <li>Open System Settings</li>
+                      <li>Go to Privacy & Security → Accessibility</li>
+                      <li>Add this app (or Terminal if running from terminal)</li>
+                      <li>Toggle the switch again</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {!permissionError && (
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                {isEnabled 
+                  ? 'Mouse will move randomly every second' 
+                  : 'Toggle to start moving the mouse cursor'}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default App
+
