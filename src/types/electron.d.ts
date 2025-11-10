@@ -1,13 +1,18 @@
 export interface ElectronAPI {
-  startMouseMove: (inactivitySeconds?: number) => Promise<{ success: boolean; error?: string; message?: string }>
-  stopMouseMove: () => Promise<{ success: boolean }>
-  getMouseMoveStatus: () => Promise<{ isMoving: boolean }>
-  checkAccessibilityPermissions: () => Promise<{ hasPermission: boolean; error?: string }>
+  startMouseMove: (
+    inactivitySeconds?: number
+  ) => Promise<{ success: boolean; error?: string; message?: string }>;
+  stopMouseMove: () => Promise<{ success: boolean }>;
+  getMouseMoveStatus: () => Promise<{ isMoving: boolean }>;
+  checkAccessibilityPermissions: () => Promise<{
+    hasPermission: boolean;
+    error?: string;
+  }>;
+  closePopup?: () => void;
 }
 
 declare global {
   interface Window {
-    electronAPI: ElectronAPI
+    electronAPI: ElectronAPI;
   }
 }
-
