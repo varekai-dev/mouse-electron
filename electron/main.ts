@@ -17,8 +17,10 @@ let popupWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let mouseMoveInterval: NodeJS.Timeout | null = null;
 let activityCheckInterval: NodeJS.Timeout | null = null;
+let nextMoveTimeout: NodeJS.Timeout | null = null;
 let isMoving = false;
 let inactivityThreshold = 60; // seconds
+let moveIntervalRange: { from: number; to: number } | null = null; // seconds
 let lastActivityTime = Date.now();
 let lastMousePosition: Point | null = null;
 let isProgrammaticMove = false;
@@ -83,9 +85,36 @@ async function performRandomMouseMove() {
     const clampedY = Math.max(0, Math.min(targetY, 5000));
 
     await moveMouseSmoothly(clampedX, clampedY);
+
+    // Schedule next move with random interval if range is set
+    if (moveIntervalRange && isMoving) {
+      scheduleNextMove();
+    }
   } catch (error) {
     console.error("Error moving mouse:", error);
   }
+}
+
+function scheduleNextMove() {
+  if (!isMoving || !moveIntervalRange) return;
+
+  // Clear any existing timeout
+  if (nextMoveTimeout) {
+    clearTimeout(nextMoveTimeout);
+    nextMoveTimeout = null;
+  }
+
+  // Generate random interval within the range
+  const minSeconds = Math.min(moveIntervalRange.from, moveIntervalRange.to);
+  const maxSeconds = Math.max(moveIntervalRange.from, moveIntervalRange.to);
+  const randomInterval = minSeconds + Math.random() * (maxSeconds - minSeconds);
+
+  // Schedule the next move
+  nextMoveTimeout = setTimeout(async () => {
+    if (isMoving) {
+      await performRandomMouseMove();
+    }
+  }, randomInterval * 1000);
 }
 
 async function checkUserActivity(): Promise<boolean> {
@@ -139,7 +168,23 @@ function startActivityMonitoring() {
       // No recent activity detected, safe to move mouse
       const timeSinceLastActivity = (Date.now() - lastActivityTime) / 1000;
       if (timeSinceLastActivity >= inactivityThreshold) {
-        await performRandomMouseMove();
+        // If range is set, use random interval scheduling
+        if (moveIntervalRange) {
+          // Only schedule if not already scheduled
+          if (!nextMoveTimeout) {
+            // Move immediately, then schedule next move
+            await performRandomMouseMove();
+          }
+        } else {
+          // Old behavior: move immediately
+          await performRandomMouseMove();
+        }
+      }
+    } else {
+      // User is active, cancel any scheduled moves
+      if (nextMoveTimeout) {
+        clearTimeout(nextMoveTimeout);
+        nextMoveTimeout = null;
       }
     }
   }, 1000);
@@ -150,13 +195,21 @@ function stopActivityMonitoring() {
     clearInterval(activityCheckInterval);
     activityCheckInterval = null;
   }
+  if (nextMoveTimeout) {
+    clearTimeout(nextMoveTimeout);
+    nextMoveTimeout = null;
+  }
   lastMousePosition = null;
 }
 
-function startMouseMovement(threshold: number = 60) {
+function startMouseMovement(
+  threshold: number = 60,
+  range?: { from: number; to: number }
+) {
   if (isMoving) return;
 
   inactivityThreshold = threshold;
+  moveIntervalRange = range && range.from > 0 && range.to > 0 ? range : null;
   lastActivityTime = Date.now();
   isMoving = true;
 
@@ -187,7 +240,7 @@ function getTrayPosition() {
 
   // Adjust if popup would go off screen
   const popupWidth = 320;
-  const popupHeight = 320;
+  const popupHeight = 400;
 
   if (x - popupWidth / 2 < workArea.x) {
     x = workArea.x + popupWidth / 2;
@@ -211,7 +264,7 @@ function createPopupWindow() {
 
   const trayPos = getTrayPosition();
   const popupWidth = 320;
-  const popupHeight = 320;
+  const popupHeight = 400;
 
   popupWindow = new BrowserWindow({
     width: popupWidth,
@@ -263,7 +316,7 @@ function closePopupWindow() {
 function createTray() {
   // Load icon from file
   let iconPath: string;
-  
+
   if (isDev) {
     // In development, look for icon in project root assets folder
     iconPath = join(__dirname, "../../assets/icons/icon.png");
@@ -274,7 +327,7 @@ function createTray() {
 
   // Fallback to programmatically created icon if file doesn't exist
   let icon: Electron.NativeImage;
-  
+
   try {
     icon = nativeImage.createFromPath(iconPath);
     // If the image is empty or invalid, throw error to use fallback
@@ -285,7 +338,10 @@ function createTray() {
     const size = process.platform === "darwin" ? 22 : 16;
     icon = icon.resize({ width: size, height: size });
   } catch (error) {
-    console.warn(`Could not load icon from ${iconPath}, using fallback:`, error);
+    console.warn(
+      `Could not load icon from ${iconPath}, using fallback:`,
+      error
+    );
     // Fallback: Create a simple 16x16 bitmap icon programmatically
     const size = 16;
     const buffer = Buffer.alloc(size * size * 4); // RGBA
@@ -388,7 +444,11 @@ async function checkAccessibilityPermissions(): Promise<{
 // IPC handlers
 ipcMain.handle(
   "mouse-move:start",
-  async (_event, inactivitySeconds?: number) => {
+  async (
+    _event,
+    inactivitySeconds?: number,
+    range?: { from: number; to: number }
+  ) => {
     try {
       // Check permissions first
       const permissionCheck = await checkAccessibilityPermissions();
@@ -404,7 +464,17 @@ ipcMain.handle(
 
       const threshold =
         inactivitySeconds && inactivitySeconds > 0 ? inactivitySeconds : 60;
-      startMouseMovement(threshold);
+
+      // Validate range if provided
+      let validRange: { from: number; to: number } | undefined;
+      if (range && range.from > 0 && range.to > 0) {
+        validRange = {
+          from: Math.min(range.from, range.to),
+          to: Math.max(range.from, range.to),
+        };
+      }
+
+      startMouseMovement(threshold, validRange);
       return { success: true };
     } catch (error: any) {
       return {

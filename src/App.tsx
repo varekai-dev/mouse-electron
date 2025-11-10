@@ -9,6 +9,8 @@ function App() {
   const [apiAvailable, setApiAvailable] = useState(false)
   const [permissionError, setPermissionError] = useState<string | null>(null)
   const [inactivitySeconds, setInactivitySeconds] = useState(60)
+  const [rangeFrom, setRangeFrom] = useState(1)
+  const [rangeTo, setRangeTo] = useState(3)
 
   useEffect(() => {
     // Wait for Electron API to be available
@@ -50,7 +52,8 @@ function App() {
     
     try {
       if (checked) {
-        const result = await window.electronAPI.startMouseMove(inactivitySeconds)
+        const range = rangeFrom > 0 && rangeTo > 0 ? { from: rangeFrom, to: rangeTo } : undefined
+        const result = await window.electronAPI.startMouseMove(inactivitySeconds, range)
         if (result.success) {
           setIsEnabled(true)
         } else {
@@ -108,6 +111,58 @@ function App() {
                 className="w-full"
               />
             </div>
+
+            <div className="w-full space-y-2">
+              <label 
+                className="text-sm font-medium text-foreground"
+              >
+                Movement interval range (seconds)
+              </label>
+              <div className="flex items-center space-x-2">
+                <div className="flex-1 space-y-1">
+                  <label 
+                    htmlFor="range-from" 
+                    className="text-xs text-muted-foreground"
+                  >
+                    From
+                  </label>
+                  <Input
+                    id="range-from"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={rangeFrom}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0.1
+                      setRangeFrom(Math.max(0.1, value))
+                    }}
+                    disabled={isEnabled || isLoading || !apiAvailable}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <label 
+                    htmlFor="range-to" 
+                    className="text-xs text-muted-foreground"
+                  >
+                    To
+                  </label>
+                  <Input
+                    id="range-to"
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={rangeTo}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value) || 0.1
+                      setRangeTo(Math.max(0.1, value))
+                    }}
+                    disabled={isEnabled || isLoading || !apiAvailable}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
             
             <div className="flex items-center space-x-3 w-full justify-between">
               <label 
@@ -152,7 +207,7 @@ function App() {
             {!permissionError && (
               <p className="text-xs text-muted-foreground text-center mt-2">
                 {isEnabled 
-                  ? `Mouse will move only after ${inactivitySeconds} seconds of inactivity` 
+                  ? `Mouse will move after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly` 
                   : 'Toggle to start moving the mouse cursor after inactivity'}
               </p>
             )}

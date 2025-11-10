@@ -8,6 +8,8 @@ function TrayPopup() {
   const [isLoading, setIsLoading] = useState(false);
   const [apiAvailable, setApiAvailable] = useState(false);
   const [inactivitySeconds, setInactivitySeconds] = useState(60);
+  const [rangeFrom, setRangeFrom] = useState(1);
+  const [rangeTo, setRangeTo] = useState(3);
 
   useEffect(() => {
     // Wait for Electron API to be available
@@ -50,8 +52,13 @@ function TrayPopup() {
 
     try {
       if (checked) {
+        const range =
+          rangeFrom > 0 && rangeTo > 0
+            ? { from: rangeFrom, to: rangeTo }
+            : undefined;
         const result = await window.electronAPI.startMouseMove(
-          inactivitySeconds
+          inactivitySeconds,
+          range
         );
         if (result.success) {
           setIsEnabled(true);
@@ -83,8 +90,8 @@ function TrayPopup() {
   };
 
   return (
-    <div className="w-full h-full bg-background rounded-lg shadow-lg border border-border overflow-hidden">
-      <div className="p-4 space-y-4">
+    <div className="w-full h-full bg-background rounded-lg shadow-lg border border-border flex flex-col overflow-hidden">
+      <div className="px-4 pt-4 pb-0 space-y-3">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -158,17 +165,68 @@ function TrayPopup() {
           />
         </div>
 
+        {/* Movement Interval Range */}
+        <div className="space-y-2">
+          <label className="text-xs font-medium text-foreground">
+            Movement Interval Range (seconds)
+          </label>
+          <div className="flex items-center space-x-2">
+            <div className="flex-1 space-y-1">
+              <label
+                htmlFor="tray-range-from"
+                className="text-xs text-muted-foreground"
+              >
+                From
+              </label>
+              <Input
+                id="tray-range-from"
+                type="number"
+                min="0.1"
+                step="0.1"
+                value={rangeFrom}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value) || 0.1;
+                  setRangeFrom(Math.max(0.1, value));
+                }}
+                disabled={isEnabled || isLoading || !apiAvailable}
+                className="h-8 text-xs"
+              />
+            </div>
+            <div className="flex-1 space-y-1">
+              <label
+                htmlFor="tray-range-to"
+                className="text-xs text-muted-foreground"
+              >
+                To
+              </label>
+              <Input
+                id="tray-range-to"
+                type="number"
+                min="0.1"
+                step="0.1"
+                value={rangeTo}
+                onChange={(e) => {
+                  const value = parseFloat(e.target.value) || 0.1;
+                  setRangeTo(Math.max(0.1, value));
+                }}
+                disabled={isEnabled || isLoading || !apiAvailable}
+                className="h-8 text-xs"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Info */}
-        <div className="pt-2 border-t border-border">
+        <div className="pt-1 border-t border-border">
           <p className="text-xs text-muted-foreground">
             {isEnabled
-              ? `Moving mouse after ${inactivitySeconds}s of inactivity`
+              ? `Moving mouse after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly`
               : "Enable to start moving mouse after inactivity"}
           </p>
         </div>
 
         {/* Quit App Button */}
-        <div className="pt-2 border-t border-border">
+        <div className="pt-1 border-t border-border pb-4">
           <button
             onClick={handleQuit}
             className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
