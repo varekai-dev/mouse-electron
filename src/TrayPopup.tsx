@@ -32,6 +32,13 @@ const setStoredValue = (key: string, value: number): void => {
   }
 };
 
+const isValidNumberInput = (value: string): boolean => {
+  if (value === "") return true;
+  // Allow: digits, digits with decimal point, digits with decimal and more digits
+  // Also allow intermediate states like "1." or "1.5" while typing
+  return /^\d*\.?\d*$/.test(value) && value !== ".";
+};
+
 function TrayPopup() {
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,11 +46,20 @@ function TrayPopup() {
   const [inactivitySeconds, setInactivitySeconds] = useState(() =>
     getStoredValue(STORAGE_KEYS.inactivitySeconds, 60)
   );
+  const [inactivitySecondsDisplay, setInactivitySecondsDisplay] = useState(() =>
+    getStoredValue(STORAGE_KEYS.inactivitySeconds, 60).toString()
+  );
   const [rangeFrom, setRangeFrom] = useState(() =>
     getStoredValue(STORAGE_KEYS.rangeFrom, 1)
   );
+  const [rangeFromDisplay, setRangeFromDisplay] = useState(() =>
+    getStoredValue(STORAGE_KEYS.rangeFrom, 1).toString()
+  );
   const [rangeTo, setRangeTo] = useState(() =>
     getStoredValue(STORAGE_KEYS.rangeTo, 3)
+  );
+  const [rangeToDisplay, setRangeToDisplay] = useState(() =>
+    getStoredValue(STORAGE_KEYS.rangeTo, 3).toString()
   );
 
   useEffect(() => {
@@ -125,8 +141,8 @@ function TrayPopup() {
   };
 
   return (
-    <div className="w-full h-full bg-background rounded-lg shadow-lg border border-border flex flex-col overflow-hidden">
-      <div className="px-4 pt-4 pb-0 space-y-3">
+    <div className="w-full h-auto min-h-fit bg-background rounded-lg shadow-lg border border-border flex flex-col">
+      <div className="px-4 pt-4 pb-4 space-y-3">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -186,20 +202,43 @@ function TrayPopup() {
           >
             Inactivity Threshold (seconds)
           </label>
-              <Input
-                id="tray-inactivity"
-                type="number"
-                min="1"
-                value={inactivitySeconds}
-                onChange={(e) => {
-                  const value = parseInt(e.target.value) || 1;
-                  const newValue = Math.max(1, value);
+          <Input
+            id="tray-inactivity"
+            type="text"
+            value={inactivitySecondsDisplay}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (isValidNumberInput(value)) {
+                setInactivitySecondsDisplay(value);
+                if (value !== "") {
+                  const numValue = parseFloat(value);
+                  if (!isNaN(numValue)) {
+                    const newValue = Math.max(1, numValue);
+                    setInactivitySeconds(newValue);
+                    setStoredValue(STORAGE_KEYS.inactivitySeconds, newValue);
+                  }
+                }
+              }
+            }}
+            onBlur={(e) => {
+              const value = e.target.value;
+              if (value === "") {
+                setInactivitySecondsDisplay("1");
+                setInactivitySeconds(1);
+                setStoredValue(STORAGE_KEYS.inactivitySeconds, 1);
+              } else {
+                const numValue = parseFloat(value);
+                if (!isNaN(numValue)) {
+                  const newValue = Math.max(1, numValue);
+                  setInactivitySecondsDisplay(newValue.toString());
                   setInactivitySeconds(newValue);
                   setStoredValue(STORAGE_KEYS.inactivitySeconds, newValue);
-                }}
-                disabled={isEnabled || isLoading || !apiAvailable}
-                className="h-8 text-xs"
-              />
+                }
+              }
+            }}
+            disabled={isEnabled || isLoading || !apiAvailable}
+            className="h-8 text-xs"
+          />
         </div>
 
         {/* Movement Interval Range */}
@@ -217,15 +256,37 @@ function TrayPopup() {
               </label>
               <Input
                 id="tray-range-from"
-                type="number"
-                min="0.1"
-                step="0.1"
-                value={rangeFrom}
+                type="text"
+                value={rangeFromDisplay}
                 onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0.1;
-                  const newValue = Math.max(0.1, value);
-                  setRangeFrom(newValue);
-                  setStoredValue(STORAGE_KEYS.rangeFrom, newValue);
+                  const value = e.target.value;
+                  if (isValidNumberInput(value)) {
+                    setRangeFromDisplay(value);
+                    if (value !== "") {
+                      const numValue = parseFloat(value);
+                      if (!isNaN(numValue)) {
+                        const newValue = Math.max(0.1, numValue);
+                        setRangeFrom(newValue);
+                        setStoredValue(STORAGE_KEYS.rangeFrom, newValue);
+                      }
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value;
+                  if (value === "") {
+                    setRangeFromDisplay("0.1");
+                    setRangeFrom(0.1);
+                    setStoredValue(STORAGE_KEYS.rangeFrom, 0.1);
+                  } else {
+                    const numValue = parseFloat(value);
+                    if (!isNaN(numValue)) {
+                      const newValue = Math.max(0.1, numValue);
+                      setRangeFromDisplay(newValue.toString());
+                      setRangeFrom(newValue);
+                      setStoredValue(STORAGE_KEYS.rangeFrom, newValue);
+                    }
+                  }
                 }}
                 disabled={isEnabled || isLoading || !apiAvailable}
                 className="h-8 text-xs"
@@ -240,15 +301,37 @@ function TrayPopup() {
               </label>
               <Input
                 id="tray-range-to"
-                type="number"
-                min="0.1"
-                step="0.1"
-                value={rangeTo}
+                type="text"
+                value={rangeToDisplay}
                 onChange={(e) => {
-                  const value = parseFloat(e.target.value) || 0.1;
-                  const newValue = Math.max(0.1, value);
-                  setRangeTo(newValue);
-                  setStoredValue(STORAGE_KEYS.rangeTo, newValue);
+                  const value = e.target.value;
+                  if (isValidNumberInput(value)) {
+                    setRangeToDisplay(value);
+                    if (value !== "") {
+                      const numValue = parseFloat(value);
+                      if (!isNaN(numValue)) {
+                        const newValue = Math.max(0.1, numValue);
+                        setRangeTo(newValue);
+                        setStoredValue(STORAGE_KEYS.rangeTo, newValue);
+                      }
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  const value = e.target.value;
+                  if (value === "") {
+                    setRangeToDisplay("0.1");
+                    setRangeTo(0.1);
+                    setStoredValue(STORAGE_KEYS.rangeTo, 0.1);
+                  } else {
+                    const numValue = parseFloat(value);
+                    if (!isNaN(numValue)) {
+                      const newValue = Math.max(0.1, numValue);
+                      setRangeToDisplay(newValue.toString());
+                      setRangeTo(newValue);
+                      setStoredValue(STORAGE_KEYS.rangeTo, newValue);
+                    }
+                  }
                 }}
                 disabled={isEnabled || isLoading || !apiAvailable}
                 className="h-8 text-xs"
@@ -267,7 +350,7 @@ function TrayPopup() {
         </div>
 
         {/* Quit App Button */}
-        <div className="pt-1 border-t border-border pb-4">
+        <div className="pt-1 border-t border-border">
           <button
             onClick={handleQuit}
             className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
