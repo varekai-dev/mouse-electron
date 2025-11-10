@@ -86,7 +86,7 @@ function App() {
               className={`h-8 w-8 ${isEnabled ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} 
             />
             <h1 className="text-2xl font-bold text-foreground">
-              Mouse Mover
+              Move Mouse
             </h1>
           </div>
           

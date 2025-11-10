@@ -1,4 +1,4 @@
-# Electron Mouse Mover App
+# Move Mouse App
 
 An Electron application that smoothly moves your mouse cursor in random directions every second when enabled. Built with React, TypeScript, and shadcn/ui.
 
@@ -18,6 +18,7 @@ An Electron application that smoothly moves your mouse cursor in random directio
 ## Installation
 
 1. Install dependencies:
+
 ```bash
 npm install
 ```
@@ -36,6 +37,7 @@ npm run electron:dev
 ```
 
 This will:
+
 - Start the Vite dev server for React
 - Launch Electron when the server is ready
 - Open DevTools automatically
@@ -49,6 +51,7 @@ npm run electron:build
 ```
 
 This will:
+
 - Build the React app
 - Compile the Electron main process
 - Package the app using electron-builder
@@ -89,4 +92,3 @@ This will:
 ## License
 
 MIT
-

@@ -103,7 +103,7 @@ function TrayPopup() {
               }`}
             />
             <h2 className="text-sm font-semibold text-foreground">
-              Mouse Mover
+              Move Mouse
             </h2>
           </div>
           <button

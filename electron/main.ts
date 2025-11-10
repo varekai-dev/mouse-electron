@@ -5,9 +5,11 @@ import {
   Tray,
   nativeImage,
   screen,
+  globalShortcut,
 } from "electron";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { exec } from "child_process";
 import { mouse, Point } from "@nut-tree-fork/nut-js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +27,8 @@ let lastActivityTime = Date.now();
 let lastMousePosition: Point | null = null;
 let isProgrammaticMove = false;
 let isQuitting = false;
+let keyboardActivityListeners: Array<() => void> = [];
+let lastKeyboardCheckTime = Date.now();
 
 const isDev = process.env.NODE_ENV !== "production" && !app.isPackaged;
 
@@ -117,6 +121,10 @@ function scheduleNextMove() {
   }, randomInterval * 1000);
 }
 
+function updateActivityTime() {
+  lastActivityTime = Date.now();
+}
+
 async function checkUserActivity(): Promise<boolean> {
   try {
     // Skip activity check if we're currently moving the mouse programmatically
@@ -134,7 +142,7 @@ async function checkUserActivity(): Promise<boolean> {
       );
       // If mouse moved more than 5 pixels, consider it user activity
       if (distance > 5) {
-        lastActivityTime = Date.now();
+        updateActivityTime();
         lastMousePosition = currentPos;
         return true; // User is active
       }
@@ -155,8 +163,99 @@ async function checkUserActivity(): Promise<boolean> {
   }
 }
 
+function checkKeyboardActivity(): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (process.platform === 'darwin') {
+      // On macOS, use ioreg to check for keyboard activity
+      // Check for keyboard devices and their idle time
+      exec(
+        'ioreg -r -k "HIDIdleTime" -d 1 | grep -i "HIDIdleTime" | awk \'{print $NF}\' | sort -n | head -1',
+        (error, stdout) => {
+          if (error || !stdout || !stdout.trim()) {
+            resolve(false);
+            return;
+          }
+          
+          try {
+            // HIDIdleTime is in nanoseconds, convert to seconds
+            const idleTimeNs = parseInt(stdout.trim(), 10);
+            if (isNaN(idleTimeNs)) {
+              resolve(false);
+              return;
+            }
+            
+            const idleTimeSeconds = idleTimeNs / 1_000_000_000;
+            
+            // If idle time is less than 1 second, keyboard was recently active
+            if (idleTimeSeconds < 1.0) {
+              const now = Date.now();
+              // Only update if it's been at least 100ms since last check to avoid excessive updates
+              if (now - lastKeyboardCheckTime > 100) {
+                updateActivityTime();
+                lastKeyboardCheckTime = now;
+                resolve(true);
+              } else {
+                resolve(false);
+              }
+            } else {
+              resolve(false);
+            }
+          } catch (err) {
+            resolve(false);
+          }
+        }
+      );
+    } else {
+      // For other platforms, we can't easily detect keyboard activity
+      // without native modules, so we'll just return false
+      resolve(false);
+    }
+  });
+}
+
+function registerKeyboardActivityListeners() {
+  // Poll for keyboard activity using system commands
+  if (process.platform === 'darwin') {
+    const keyboardCheckInterval = setInterval(() => {
+      checkKeyboardActivity().catch(() => {
+        // Ignore errors
+      });
+    }, 500); // Check every 500ms
+
+    keyboardActivityListeners.push(() => {
+      clearInterval(keyboardCheckInterval);
+    });
+  }
+  
+  // Also register a global shortcut as a fallback for all platforms
+  // This won't catch all keys but will help detect some activity
+  const fallbackShortcut = process.platform === 'darwin' 
+    ? 'Command+Shift+Control+Alt+Space'
+    : 'CommandOrControl+Shift+Alt+Space';
+  
+  try {
+    globalShortcut.register(fallbackShortcut, () => {
+      updateActivityTime();
+    });
+    keyboardActivityListeners.push(() => {
+      globalShortcut.unregister(fallbackShortcut);
+    });
+  } catch (error) {
+    // Ignore if registration fails
+  }
+}
+
+function unregisterKeyboardActivityListeners() {
+  keyboardActivityListeners.forEach((unregister) => unregister());
+  keyboardActivityListeners = [];
+  globalShortcut.unregisterAll();
+}
+
 function startActivityMonitoring() {
   if (activityCheckInterval) return;
+
+  // Register keyboard activity listeners
+  registerKeyboardActivityListeners();
 
   // Check for activity every second
   activityCheckInterval = setInterval(async () => {
@@ -199,6 +298,7 @@ function stopActivityMonitoring() {
     clearTimeout(nextMoveTimeout);
     nextMoveTimeout = null;
   }
+  unregisterKeyboardActivityListeners();
   lastMousePosition = null;
 }
 
@@ -388,7 +488,7 @@ function createTray() {
 
   tray = new Tray(icon);
 
-  tray.setToolTip("Mouse Mover - Click to open settings");
+  tray.setToolTip("Move Mouse - Click to open settings");
 
   // Clicking the tray icon should show the popup with settings
   tray.on("click", () => {

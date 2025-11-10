@@ -1,5 +1,5 @@
 {
-  "name": "electron-mouse-mover",
+  "name": "move-mouse",
   "version": "1.0.0",
   "description": "Electron app that moves mouse in random directions",
   "main": "dist-electron/main.js",
@@ -18,7 +18,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^20.10.0",
+    "@types/node": "^20.19.24",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@vitejs/plugin-react": "^4.2.1",
@@ -35,8 +35,8 @@
   },
   "dependencies": {
     "@nut-tree-fork/nut-js": "^4.2.6",
-    "@radix-ui/react-toggle": "^1.0.3",
     "@radix-ui/react-switch": "^1.0.3",
+    "@radix-ui/react-toggle": "^1.0.3",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "lucide-react": "^0.303.0",
@@ -45,8 +45,8 @@
     "tailwind-merge": "^2.2.0"
   },
   "build": {
-    "appId": "com.mousemover.app",
-    "productName": "Mouse Mover",
+    "appId": "com.movemouse.app",
+    "productName": "Move Mouse",
     "directories": {
       "output": "release"
     },
