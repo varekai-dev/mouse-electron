@@ -3,13 +3,48 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Activity, X, Power } from "lucide-react";
 
+const STORAGE_KEYS = {
+  inactivitySeconds: "moveMouse_inactivitySeconds",
+  rangeFrom: "moveMouse_rangeFrom",
+  rangeTo: "moveMouse_rangeTo",
+};
+
+const getStoredValue = (key: string, defaultValue: number): number => {
+  if (typeof window === "undefined") return defaultValue;
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored !== null) {
+      const parsed = parseFloat(stored);
+      return isNaN(parsed) ? defaultValue : parsed;
+    }
+  } catch (error) {
+    console.error(`Error reading ${key} from localStorage:`, error);
+  }
+  return defaultValue;
+};
+
+const setStoredValue = (key: string, value: number): void => {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, value.toString());
+  } catch (error) {
+    console.error(`Error saving ${key} to localStorage:`, error);
+  }
+};
+
 function TrayPopup() {
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [apiAvailable, setApiAvailable] = useState(false);
-  const [inactivitySeconds, setInactivitySeconds] = useState(60);
-  const [rangeFrom, setRangeFrom] = useState(1);
-  const [rangeTo, setRangeTo] = useState(3);
+  const [inactivitySeconds, setInactivitySeconds] = useState(() =>
+    getStoredValue(STORAGE_KEYS.inactivitySeconds, 60)
+  );
+  const [rangeFrom, setRangeFrom] = useState(() =>
+    getStoredValue(STORAGE_KEYS.rangeFrom, 1)
+  );
+  const [rangeTo, setRangeTo] = useState(() =>
+    getStoredValue(STORAGE_KEYS.rangeTo, 3)
+  );
 
   useEffect(() => {
     // Wait for Electron API to be available
@@ -151,18 +186,20 @@ function TrayPopup() {
           >
             Inactivity Threshold (seconds)
           </label>
-          <Input
-            id="tray-inactivity"
-            type="number"
-            min="1"
-            value={inactivitySeconds}
-            onChange={(e) => {
-              const value = parseInt(e.target.value) || 1;
-              setInactivitySeconds(Math.max(1, value));
-            }}
-            disabled={isEnabled || isLoading || !apiAvailable}
-            className="h-8 text-xs"
-          />
+              <Input
+                id="tray-inactivity"
+                type="number"
+                min="1"
+                value={inactivitySeconds}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1;
+                  const newValue = Math.max(1, value);
+                  setInactivitySeconds(newValue);
+                  setStoredValue(STORAGE_KEYS.inactivitySeconds, newValue);
+                }}
+                disabled={isEnabled || isLoading || !apiAvailable}
+                className="h-8 text-xs"
+              />
         </div>
 
         {/* Movement Interval Range */}
@@ -186,7 +223,9 @@ function TrayPopup() {
                 value={rangeFrom}
                 onChange={(e) => {
                   const value = parseFloat(e.target.value) || 0.1;
-                  setRangeFrom(Math.max(0.1, value));
+                  const newValue = Math.max(0.1, value);
+                  setRangeFrom(newValue);
+                  setStoredValue(STORAGE_KEYS.rangeFrom, newValue);
                 }}
                 disabled={isEnabled || isLoading || !apiAvailable}
                 className="h-8 text-xs"
@@ -207,7 +246,9 @@ function TrayPopup() {
                 value={rangeTo}
                 onChange={(e) => {
                   const value = parseFloat(e.target.value) || 0.1;
-                  setRangeTo(Math.max(0.1, value));
+                  const newValue = Math.max(0.1, value);
+                  setRangeTo(newValue);
+                  setStoredValue(STORAGE_KEYS.rangeTo, newValue);
                 }}
                 disabled={isEnabled || isLoading || !apiAvailable}
                 className="h-8 text-xs"
