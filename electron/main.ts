@@ -13,7 +13,6 @@ import { mouse, Point } from "@nut-tree-fork/nut-js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-let mainWindow: BrowserWindow | null = null;
 let popupWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let mouseMoveInterval: NodeJS.Timeout | null = null;
@@ -26,43 +25,6 @@ let isProgrammaticMove = false;
 let isQuitting = false;
 
 const isDev = process.env.NODE_ENV !== "production" && !app.isPackaged;
-
-function createWindow() {
-  if (mainWindow) {
-    mainWindow.show();
-    mainWindow.focus();
-    return;
-  }
-
-  mainWindow = new BrowserWindow({
-    width: 400,
-    height: 300,
-    webPreferences: {
-      preload: join(__dirname, "preload.js"),
-      nodeIntegration: false,
-      contextIsolation: true,
-    },
-  });
-
-  if (isDev) {
-    mainWindow.loadURL("http://localhost:5173");
-    mainWindow.webContents.openDevTools();
-  } else {
-    mainWindow.loadFile(join(__dirname, "../dist/index.html"));
-  }
-
-  mainWindow.on("closed", () => {
-    mainWindow = null;
-  });
-
-  // Hide window on close instead of closing (keep app running in tray)
-  mainWindow.on("close", (event) => {
-    if (!isQuitting) {
-      event.preventDefault();
-      mainWindow?.hide();
-    }
-  });
-}
 
 async function moveMouseSmoothly(targetX: number, targetY: number) {
   isProgrammaticMove = true;
@@ -356,16 +318,11 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
-  createWindow();
   createTray();
 
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
-    } else {
-      mainWindow?.show();
-      mainWindow?.focus();
-    }
+    // Don't show main window on activate - app runs in tray only
+    // If user wants to interact, they can click the tray icon
   });
 });
 
