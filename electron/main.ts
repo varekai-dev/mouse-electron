@@ -224,8 +224,8 @@ function getTrayPosition() {
   let y = bounds.y + bounds.height;
 
   // Adjust if popup would go off screen
-  const popupWidth = 280;
-  const popupHeight = 240;
+  const popupWidth = 320;
+  const popupHeight = 320;
 
   if (x - popupWidth / 2 < workArea.x) {
     x = workArea.x + popupWidth / 2;
@@ -248,8 +248,8 @@ function createPopupWindow() {
   }
 
   const trayPos = getTrayPosition();
-  const popupWidth = 280;
-  const popupHeight = 240;
+  const popupWidth = 320;
+  const popupHeight = 320;
 
   popupWindow = new BrowserWindow({
     width: popupWidth,
