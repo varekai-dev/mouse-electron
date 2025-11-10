@@ -406,3 +406,8 @@ ipcMain.handle("popup:close", () => {
   closePopupWindow();
   return { success: true };
 });
+
+ipcMain.handle("app:quit", () => {
+  app.quit();
+  return { success: true };
+});

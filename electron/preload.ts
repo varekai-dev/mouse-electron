@@ -8,4 +8,5 @@ contextBridge.exposeInMainWorld("electronAPI", {
   checkAccessibilityPermissions: () =>
     ipcRenderer.invoke("mouse-move:check-permissions"),
   closePopup: () => ipcRenderer.invoke("popup:close"),
+  quitApp: () => ipcRenderer.invoke("app:quit"),
 });

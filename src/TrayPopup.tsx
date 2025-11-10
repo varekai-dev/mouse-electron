@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Activity, X } from "lucide-react";
+import { Activity, X, Power } from "lucide-react";
 
 function TrayPopup() {
   const [isEnabled, setIsEnabled] = useState(false);
@@ -73,6 +73,12 @@ function TrayPopup() {
   const handleClose = () => {
     if (window.electronAPI && window.electronAPI.closePopup) {
       window.electronAPI.closePopup();
+    }
+  };
+
+  const handleQuit = () => {
+    if (window.electronAPI && window.electronAPI.quitApp) {
+      window.electronAPI.quitApp();
     }
   };
 
@@ -159,6 +165,18 @@ function TrayPopup() {
               ? `Moving mouse after ${inactivitySeconds}s of inactivity`
               : "Enable to start moving mouse after inactivity"}
           </p>
+        </div>
+
+        {/* Quit App Button */}
+        <div className="pt-2 border-t border-border">
+          <button
+            onClick={handleQuit}
+            className="w-full flex items-center justify-center space-x-2 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+            aria-label="Quit App"
+          >
+            <Power className="h-4 w-4" />
+            <span>Quit App</span>
+          </button>
         </div>
       </div>
     </div>

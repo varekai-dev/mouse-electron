@@ -9,6 +9,7 @@ export interface ElectronAPI {
     error?: string;
   }>;
   closePopup?: () => void;
+  quitApp: () => Promise<{ success: boolean }>;
 }
 
 declare global {
