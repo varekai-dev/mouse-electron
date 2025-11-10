@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Switch } from '@/components/ui/switch'
+import { Input } from '@/components/ui/input'
 import { Activity, AlertCircle } from 'lucide-react'
 
 function App() {
@@ -7,6 +8,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [apiAvailable, setApiAvailable] = useState(false)
   const [permissionError, setPermissionError] = useState<string | null>(null)
+  const [inactivitySeconds, setInactivitySeconds] = useState(60)
 
   useEffect(() => {
     // Wait for Electron API to be available
@@ -48,7 +50,7 @@ function App() {
     
     try {
       if (checked) {
-        const result = await window.electronAPI.startMouseMove()
+        const result = await window.electronAPI.startMouseMove(inactivitySeconds)
         if (result.success) {
           setIsEnabled(true)
         } else {
@@ -86,6 +88,27 @@ function App() {
           </div>
           
           <div className="flex flex-col items-center space-y-4 w-full">
+            <div className="w-full space-y-2">
+              <label 
+                htmlFor="inactivity-seconds" 
+                className="text-sm font-medium text-foreground"
+              >
+                Inactivity threshold (seconds)
+              </label>
+              <Input
+                id="inactivity-seconds"
+                type="number"
+                min="1"
+                value={inactivitySeconds}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1
+                  setInactivitySeconds(Math.max(1, value))
+                }}
+                disabled={isEnabled || isLoading || !apiAvailable}
+                className="w-full"
+              />
+            </div>
+            
             <div className="flex items-center space-x-3 w-full justify-between">
               <label 
                 htmlFor="mouse-toggle" 
@@ -129,8 +152,8 @@ function App() {
             {!permissionError && (
               <p className="text-xs text-muted-foreground text-center mt-2">
                 {isEnabled 
-                  ? 'Mouse will move randomly every second' 
-                  : 'Toggle to start moving the mouse cursor'}
+                  ? `Mouse will move only after ${inactivitySeconds} seconds of inactivity` 
+                  : 'Toggle to start moving the mouse cursor after inactivity'}
               </p>
             )}
           </div>

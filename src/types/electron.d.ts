@@ -1,5 +1,5 @@
 export interface ElectronAPI {
-  startMouseMove: () => Promise<{ success: boolean; error?: string; message?: string }>
+  startMouseMove: (inactivitySeconds?: number) => Promise<{ success: boolean; error?: string; message?: string }>
   stopMouseMove: () => Promise<{ success: boolean }>
   getMouseMoveStatus: () => Promise<{ isMoving: boolean }>
   checkAccessibilityPermissions: () => Promise<{ hasPermission: boolean; error?: string }>

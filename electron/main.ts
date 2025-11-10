@@ -8,7 +8,12 @@ const __dirname = dirname(__filename)
 
 let mainWindow: BrowserWindow | null = null
 let mouseMoveInterval: NodeJS.Timeout | null = null
+let activityCheckInterval: NodeJS.Timeout | null = null
 let isMoving = false
+let inactivityThreshold = 60 // seconds
+let lastActivityTime = Date.now()
+let lastMousePosition: Point | null = null
+let isProgrammaticMove = false
 
 const isDev = process.env.NODE_ENV !== 'production' && !app.isPackaged
 
@@ -36,6 +41,7 @@ function createWindow() {
 }
 
 async function moveMouseSmoothly(targetX: number, targetY: number) {
+  isProgrammaticMove = true
   const currentPos = await mouse.getPosition()
   const startX = currentPos.x
   const startY = currentPos.y
@@ -58,6 +64,15 @@ async function moveMouseSmoothly(targetX: number, targetY: number) {
       await new Promise(resolve => setTimeout(resolve, delay))
     }
   }
+  
+  // Update lastMousePosition after programmatic move to avoid false activity detection
+  const finalPos = await mouse.getPosition()
+  lastMousePosition = finalPos
+  
+  // Small delay to ensure the flag is checked before next activity check
+  setTimeout(() => {
+    isProgrammaticMove = false
+  }, 100)
 }
 
 async function performRandomMouseMove() {
@@ -87,15 +102,80 @@ async function performRandomMouseMove() {
   }
 }
 
-function startMouseMovement() {
+async function checkUserActivity(): Promise<boolean> {
+  try {
+    // Skip activity check if we're currently moving the mouse programmatically
+    if (isProgrammaticMove) {
+      return false // Don't consider programmatic moves as user activity
+    }
+    
+    const currentPos = await mouse.getPosition()
+    
+    // Check if mouse position has changed (user moved mouse)
+    if (lastMousePosition) {
+      const distance = Math.sqrt(
+        Math.pow(currentPos.x - lastMousePosition.x, 2) + 
+        Math.pow(currentPos.y - lastMousePosition.y, 2)
+      )
+      // If mouse moved more than 5 pixels, consider it user activity
+      if (distance > 5) {
+        lastActivityTime = Date.now()
+        lastMousePosition = currentPos
+        return true // User is active
+      }
+    } else {
+      lastMousePosition = currentPos
+    }
+    
+    // Update lastMousePosition even if it didn't move (for future comparisons)
+    lastMousePosition = currentPos
+    
+    // Check if enough time has passed since last activity
+    const timeSinceLastActivity = (Date.now() - lastActivityTime) / 1000
+    // Return true if there's been recent activity (within threshold), false if inactive long enough
+    return timeSinceLastActivity < inactivityThreshold
+  } catch (error) {
+    console.error('Error checking user activity:', error)
+    return false
+  }
+}
+
+function startActivityMonitoring() {
+  if (activityCheckInterval) return
+  
+  // Check for activity every second
+  activityCheckInterval = setInterval(async () => {
+    if (!isMoving) return
+    
+    const hasRecentActivity = await checkUserActivity()
+    
+    if (!hasRecentActivity) {
+      // No recent activity detected, safe to move mouse
+      const timeSinceLastActivity = (Date.now() - lastActivityTime) / 1000
+      if (timeSinceLastActivity >= inactivityThreshold) {
+        await performRandomMouseMove()
+      }
+    }
+  }, 1000)
+}
+
+function stopActivityMonitoring() {
+  if (activityCheckInterval) {
+    clearInterval(activityCheckInterval)
+    activityCheckInterval = null
+  }
+  lastMousePosition = null
+}
+
+function startMouseMovement(threshold: number = 60) {
   if (isMoving) return
   
+  inactivityThreshold = threshold
+  lastActivityTime = Date.now()
   isMoving = true
-  // Start immediately, then repeat every second
-  performRandomMouseMove()
-  mouseMoveInterval = setInterval(() => {
-    performRandomMouseMove()
-  }, 1000)
+  
+  // Start monitoring activity
+  startActivityMonitoring()
 }
 
 function stopMouseMovement() {
@@ -104,6 +184,7 @@ function stopMouseMovement() {
     clearInterval(mouseMoveInterval)
     mouseMoveInterval = null
   }
+  stopActivityMonitoring()
 }
 
 app.whenReady().then(() => {
@@ -122,6 +203,8 @@ app.on('window-all-closed', () => {
     app.quit()
   }
 })
+
+
 
 // Check accessibility permissions
 async function checkAccessibilityPermissions(): Promise<{ hasPermission: boolean; error?: string }> {
@@ -142,7 +225,7 @@ async function checkAccessibilityPermissions(): Promise<{ hasPermission: boolean
 }
 
 // IPC handlers
-ipcMain.handle('mouse-move:start', async () => {
+ipcMain.handle('mouse-move:start', async (_event, inactivitySeconds?: number) => {
   try {
     // Check permissions first
     const permissionCheck = await checkAccessibilityPermissions()
@@ -154,7 +237,8 @@ ipcMain.handle('mouse-move:start', async () => {
       }
     }
     
-    startMouseMovement()
+    const threshold = inactivitySeconds && inactivitySeconds > 0 ? inactivitySeconds : 60
+    startMouseMovement(threshold)
     return { success: true }
   } catch (error: any) {
     return { 
