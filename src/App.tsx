@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { Activity, AlertCircle } from "lucide-react";
 
 const STORAGE_KEYS = {
@@ -8,6 +9,9 @@ const STORAGE_KEYS = {
   rangeFrom: "moveMouse_rangeFrom",
   rangeTo: "moveMouse_rangeTo",
   keyboardActivity: "moveMouse_keyboardActivity",
+  hubstaffMode: "moveMouse_hubstaffMode",
+  hubstaffRangeFrom: "moveMouse_hubstaffRangeFrom",
+  hubstaffRangeTo: "moveMouse_hubstaffRangeTo",
 };
 
 const getStoredValue = (key: string, defaultValue: number): number => {
@@ -88,6 +92,15 @@ function App() {
   const [keyboardActivity, setKeyboardActivity] = useState(() =>
     getStoredBoolean(STORAGE_KEYS.keyboardActivity, false)
   );
+  const [hubstaffMode, setHubstaffMode] = useState(() =>
+    getStoredBoolean(STORAGE_KEYS.hubstaffMode, false)
+  );
+  const [hubstaffRangeFrom, setHubstaffRangeFrom] = useState(() =>
+    getStoredValue(STORAGE_KEYS.hubstaffRangeFrom, 50)
+  );
+  const [hubstaffRangeTo, setHubstaffRangeTo] = useState(() =>
+    getStoredValue(STORAGE_KEYS.hubstaffRangeTo, 75)
+  );
 
   useEffect(() => {
     // Wait for Electron API to be available
@@ -137,10 +150,20 @@ function App() {
 
     try {
       if (checked) {
-        const range =
-          rangeFrom > 0 && rangeTo > 0
-            ? { from: rangeFrom, to: rangeTo }
-            : undefined;
+        let range: { from: number; to: number } | undefined;
+        
+        if (hubstaffMode) {
+          // Convert percentage to seconds using formula: interval = 100 / percentage
+          const secondsFrom = 100 / hubstaffRangeTo; // Higher percentage = lower interval
+          const secondsTo = 100 / hubstaffRangeFrom; // Lower percentage = higher interval
+          range = { from: secondsFrom, to: secondsTo };
+        } else {
+          range =
+            rangeFrom > 0 && rangeTo > 0
+              ? { from: rangeFrom, to: rangeTo }
+              : undefined;
+        }
+        
         const result = await window.electronAPI.startMouseMove(
           inactivitySeconds,
           range,
@@ -253,103 +276,137 @@ function App() {
               />
             </div>
 
-            <div className="w-full space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                Movement interval range (seconds)
-              </label>
-              <div className="flex items-center space-x-2">
-                <div className="flex-1 space-y-1">
-                  <label
-                    htmlFor="range-from"
-                    className="text-xs text-muted-foreground"
-                  >
-                    From
-                  </label>
-                  <Input
-                    id="range-from"
-                    type="text"
-                    value={rangeFromDisplay}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (isValidNumberInput(value)) {
-                        setRangeFromDisplay(value);
-                        if (value !== "") {
+            {!hubstaffMode && (
+              <div className="w-full space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Movement interval range (seconds)
+                </label>
+                <div className="flex items-center space-x-2">
+                  <div className="flex-1 space-y-1">
+                    <label
+                      htmlFor="range-from"
+                      className="text-xs text-muted-foreground"
+                    >
+                      From
+                    </label>
+                    <Input
+                      id="range-from"
+                      type="text"
+                      value={rangeFromDisplay}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (isValidNumberInput(value)) {
+                          setRangeFromDisplay(value);
+                          if (value !== "") {
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue)) {
+                              const newValue = Math.max(0.1, numValue);
+                              setRangeFrom(newValue);
+                              setStoredValue(STORAGE_KEYS.rangeFrom, newValue);
+                            }
+                          }
+                        }
+                      }}
+                      onBlur={(e) => {
+                        const value = e.target.value;
+                        if (value === "") {
+                          setRangeFromDisplay("0.1");
+                          setRangeFrom(0.1);
+                          setStoredValue(STORAGE_KEYS.rangeFrom, 0.1);
+                        } else {
                           const numValue = parseFloat(value);
                           if (!isNaN(numValue)) {
                             const newValue = Math.max(0.1, numValue);
+                            setRangeFromDisplay(newValue.toString());
                             setRangeFrom(newValue);
                             setStoredValue(STORAGE_KEYS.rangeFrom, newValue);
                           }
                         }
-                      }
-                    }}
-                    onBlur={(e) => {
-                      const value = e.target.value;
-                      if (value === "") {
-                        setRangeFromDisplay("0.1");
-                        setRangeFrom(0.1);
-                        setStoredValue(STORAGE_KEYS.rangeFrom, 0.1);
-                      } else {
-                        const numValue = parseFloat(value);
-                        if (!isNaN(numValue)) {
-                          const newValue = Math.max(0.1, numValue);
-                          setRangeFromDisplay(newValue.toString());
-                          setRangeFrom(newValue);
-                          setStoredValue(STORAGE_KEYS.rangeFrom, newValue);
+                      }}
+                      disabled={isEnabled || isLoading || !apiAvailable}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <label
+                      htmlFor="range-to"
+                      className="text-xs text-muted-foreground"
+                    >
+                      To
+                    </label>
+                    <Input
+                      id="range-to"
+                      type="text"
+                      value={rangeToDisplay}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (isValidNumberInput(value)) {
+                          setRangeToDisplay(value);
+                          if (value !== "") {
+                            const numValue = parseFloat(value);
+                            if (!isNaN(numValue)) {
+                              const newValue = Math.max(0.1, numValue);
+                              setRangeTo(newValue);
+                              setStoredValue(STORAGE_KEYS.rangeTo, newValue);
+                            }
+                          }
                         }
-                      }
-                    }}
-                    disabled={isEnabled || isLoading || !apiAvailable}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <label
-                    htmlFor="range-to"
-                    className="text-xs text-muted-foreground"
-                  >
-                    To
-                  </label>
-                  <Input
-                    id="range-to"
-                    type="text"
-                    value={rangeToDisplay}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (isValidNumberInput(value)) {
-                        setRangeToDisplay(value);
-                        if (value !== "") {
+                      }}
+                      onBlur={(e) => {
+                        const value = e.target.value;
+                        if (value === "") {
+                          setRangeToDisplay("0.1");
+                          setRangeTo(0.1);
+                          setStoredValue(STORAGE_KEYS.rangeTo, 0.1);
+                        } else {
                           const numValue = parseFloat(value);
                           if (!isNaN(numValue)) {
                             const newValue = Math.max(0.1, numValue);
+                            setRangeToDisplay(newValue.toString());
                             setRangeTo(newValue);
                             setStoredValue(STORAGE_KEYS.rangeTo, newValue);
                           }
                         }
-                      }
-                    }}
-                    onBlur={(e) => {
-                      const value = e.target.value;
-                      if (value === "") {
-                        setRangeToDisplay("0.1");
-                        setRangeTo(0.1);
-                        setStoredValue(STORAGE_KEYS.rangeTo, 0.1);
-                      } else {
-                        const numValue = parseFloat(value);
-                        if (!isNaN(numValue)) {
-                          const newValue = Math.max(0.1, numValue);
-                          setRangeToDisplay(newValue.toString());
-                          setRangeTo(newValue);
-                          setStoredValue(STORAGE_KEYS.rangeTo, newValue);
-                        }
-                      }
+                      }}
+                      disabled={isEnabled || isLoading || !apiAvailable}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {hubstaffMode && (
+              <div className="w-full space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Activity level (%)
+                </label>
+                <div className="space-y-2">
+                  <Slider
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={[hubstaffRangeFrom, hubstaffRangeTo]}
+                    onValueChange={(values: number[]) => {
+                      setHubstaffRangeFrom(values[0]);
+                      setHubstaffRangeTo(values[1]);
+                      setStoredValue(STORAGE_KEYS.hubstaffRangeFrom, values[0]);
+                      setStoredValue(STORAGE_KEYS.hubstaffRangeTo, values[1]);
                     }}
                     disabled={isEnabled || isLoading || !apiAvailable}
                     className="w-full"
                   />
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>{hubstaffRangeFrom}%</span>
+                    <span>{hubstaffRangeTo}%</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Movement every {(100 / hubstaffRangeTo).toFixed(2)}-
+                    {(100 / hubstaffRangeFrom).toFixed(2)} seconds
+                  </p>
                 </div>
               </div>
-            </div>
+            )}
 
             <div className="flex items-center space-x-3 w-full justify-between">
               <label
@@ -364,6 +421,24 @@ function App() {
                 onCheckedChange={(checked) => {
                   setKeyboardActivity(checked);
                   setStoredBoolean(STORAGE_KEYS.keyboardActivity, checked);
+                }}
+                disabled={isEnabled || isLoading || !apiAvailable}
+              />
+            </div>
+
+            <div className="flex items-center space-x-3 w-full justify-between">
+              <label
+                htmlFor="hubstaff-mode-toggle"
+                className="text-sm font-medium text-foreground cursor-pointer"
+              >
+                Hubstaff mode
+              </label>
+              <Switch
+                id="hubstaff-mode-toggle"
+                checked={hubstaffMode}
+                onCheckedChange={(checked) => {
+                  setHubstaffMode(checked);
+                  setStoredBoolean(STORAGE_KEYS.hubstaffMode, checked);
                 }}
                 disabled={isEnabled || isLoading || !apiAvailable}
               />
@@ -399,8 +474,12 @@ function App() {
             {!permissionError && (
               <p className="text-xs text-muted-foreground text-center mt-2">
                 {isEnabled
-                  ? keyboardActivity
-                    ? `Will randomly move mouse or type a letter after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly`
+                  ? hubstaffMode
+                    ? keyboardActivity
+                      ? `Will randomly move mouse or type 2-5 letters after ${inactivitySeconds}s of inactivity with ${hubstaffRangeFrom}-${hubstaffRangeTo}% activity level`
+                      : `Mouse will move after ${inactivitySeconds}s of inactivity with ${hubstaffRangeFrom}-${hubstaffRangeTo}% activity level`
+                    : keyboardActivity
+                    ? `Will randomly move mouse or type 2-5 letters after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly`
                     : `Mouse will move after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly`
                   : "Toggle to start moving the mouse cursor after inactivity"}
               </p>
