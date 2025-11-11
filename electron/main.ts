@@ -109,13 +109,18 @@ async function performRandomKeyboardInput() {
   if (!isMoving) return;
 
   try {
-    // Generate a random English letter (a-z)
-    const randomLetter = String.fromCharCode(
-      97 + Math.floor(Math.random() * 26)
-    );
+    // Generate 2-5 random English letters (a-z)
+    const letterCount = 2 + Math.floor(Math.random() * 4); // Random number between 2 and 5
+    let randomText = "";
+    
+    for (let i = 0; i < letterCount; i++) {
+      randomText += String.fromCharCode(
+        97 + Math.floor(Math.random() * 26)
+      );
+    }
 
-    // Type the letter
-    await keyboard.type(randomLetter);
+    // Type the letters
+    await keyboard.type(randomText);
 
     // Schedule next action with random interval if range is set
     if (moveIntervalRange && isMoving) {

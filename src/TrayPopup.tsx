@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { Activity, X, Power } from "lucide-react";
 
 const STORAGE_KEYS = {
@@ -8,6 +9,9 @@ const STORAGE_KEYS = {
   rangeFrom: "moveMouse_rangeFrom",
   rangeTo: "moveMouse_rangeTo",
   keyboardActivity: "moveMouse_keyboardActivity",
+  hubstaffMode: "moveMouse_hubstaffMode",
+  hubstaffRangeFrom: "moveMouse_hubstaffRangeFrom",
+  hubstaffRangeTo: "moveMouse_hubstaffRangeTo",
 };
 
 const getStoredValue = (key: string, defaultValue: number): number => {
@@ -87,6 +91,15 @@ function TrayPopup() {
   const [keyboardActivity, setKeyboardActivity] = useState(() =>
     getStoredBoolean(STORAGE_KEYS.keyboardActivity, false)
   );
+  const [hubstaffMode, setHubstaffMode] = useState(() =>
+    getStoredBoolean(STORAGE_KEYS.hubstaffMode, false)
+  );
+  const [hubstaffRangeFrom, setHubstaffRangeFrom] = useState(() =>
+    getStoredValue(STORAGE_KEYS.hubstaffRangeFrom, 50)
+  );
+  const [hubstaffRangeTo, setHubstaffRangeTo] = useState(() =>
+    getStoredValue(STORAGE_KEYS.hubstaffRangeTo, 75)
+  );
 
   useEffect(() => {
     // Wait for Electron API to be available
@@ -129,10 +142,20 @@ function TrayPopup() {
 
     try {
       if (checked) {
-        const range =
-          rangeFrom > 0 && rangeTo > 0
-            ? { from: rangeFrom, to: rangeTo }
-            : undefined;
+        let range: { from: number; to: number } | undefined;
+        
+        if (hubstaffMode) {
+          // Convert percentage to seconds using formula: interval = 100 / percentage
+          const secondsFrom = 100 / hubstaffRangeTo; // Higher percentage = lower interval
+          const secondsTo = 100 / hubstaffRangeFrom; // Lower percentage = higher interval
+          range = { from: secondsFrom, to: secondsTo };
+        } else {
+          range =
+            rangeFrom > 0 && rangeTo > 0
+              ? { from: rangeFrom, to: rangeTo }
+              : undefined;
+        }
+        
         const result = await window.electronAPI.startMouseMove(
           inactivitySeconds,
           range,
@@ -240,6 +263,25 @@ function TrayPopup() {
           />
         </div>
 
+        {/* Hubstaff Mode Toggle */}
+        <div className="flex items-center justify-between">
+          <label
+            htmlFor="tray-hubstaff-mode"
+            className="text-xs font-medium text-foreground cursor-pointer"
+          >
+            Hubstaff mode
+          </label>
+          <Switch
+            id="tray-hubstaff-mode"
+            checked={hubstaffMode}
+            onCheckedChange={(checked) => {
+              setHubstaffMode(checked);
+              setStoredBoolean(STORAGE_KEYS.hubstaffMode, checked);
+            }}
+            disabled={isEnabled || isLoading || !apiAvailable}
+          />
+        </div>
+
         {/* Inactivity Threshold */}
         <div className="space-y-2">
           <label
@@ -288,110 +330,149 @@ function TrayPopup() {
         </div>
 
         {/* Movement Interval Range */}
-        <div className="space-y-2">
-          <label className="text-xs font-medium text-foreground">
-            Movement Interval Range (seconds)
-          </label>
-          <div className="flex items-center space-x-2">
-            <div className="flex-1 space-y-1">
-              <label
-                htmlFor="tray-range-from"
-                className="text-xs text-muted-foreground"
-              >
-                From
-              </label>
-              <Input
-                id="tray-range-from"
-                type="text"
-                value={rangeFromDisplay}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (isValidNumberInput(value)) {
-                    setRangeFromDisplay(value);
-                    if (value !== "") {
+        {!hubstaffMode && (
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-foreground">
+              Movement Interval Range (seconds)
+            </label>
+            <div className="flex items-center space-x-2">
+              <div className="flex-1 space-y-1">
+                <label
+                  htmlFor="tray-range-from"
+                  className="text-xs text-muted-foreground"
+                >
+                  From
+                </label>
+                <Input
+                  id="tray-range-from"
+                  type="text"
+                  value={rangeFromDisplay}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (isValidNumberInput(value)) {
+                      setRangeFromDisplay(value);
+                      if (value !== "") {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                          const newValue = Math.max(0.1, numValue);
+                          setRangeFrom(newValue);
+                          setStoredValue(STORAGE_KEYS.rangeFrom, newValue);
+                        }
+                      }
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const value = e.target.value;
+                    if (value === "") {
+                      setRangeFromDisplay("0.1");
+                      setRangeFrom(0.1);
+                      setStoredValue(STORAGE_KEYS.rangeFrom, 0.1);
+                    } else {
                       const numValue = parseFloat(value);
                       if (!isNaN(numValue)) {
                         const newValue = Math.max(0.1, numValue);
+                        setRangeFromDisplay(newValue.toString());
                         setRangeFrom(newValue);
                         setStoredValue(STORAGE_KEYS.rangeFrom, newValue);
                       }
                     }
-                  }
-                }}
-                onBlur={(e) => {
-                  const value = e.target.value;
-                  if (value === "") {
-                    setRangeFromDisplay("0.1");
-                    setRangeFrom(0.1);
-                    setStoredValue(STORAGE_KEYS.rangeFrom, 0.1);
-                  } else {
-                    const numValue = parseFloat(value);
-                    if (!isNaN(numValue)) {
-                      const newValue = Math.max(0.1, numValue);
-                      setRangeFromDisplay(newValue.toString());
-                      setRangeFrom(newValue);
-                      setStoredValue(STORAGE_KEYS.rangeFrom, newValue);
+                  }}
+                  disabled={isEnabled || isLoading || !apiAvailable}
+                  className="h-8 text-xs"
+                />
+              </div>
+              <div className="flex-1 space-y-1">
+                <label
+                  htmlFor="tray-range-to"
+                  className="text-xs text-muted-foreground"
+                >
+                  To
+                </label>
+                <Input
+                  id="tray-range-to"
+                  type="text"
+                  value={rangeToDisplay}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (isValidNumberInput(value)) {
+                      setRangeToDisplay(value);
+                      if (value !== "") {
+                        const numValue = parseFloat(value);
+                        if (!isNaN(numValue)) {
+                          const newValue = Math.max(0.1, numValue);
+                          setRangeTo(newValue);
+                          setStoredValue(STORAGE_KEYS.rangeTo, newValue);
+                        }
+                      }
                     }
-                  }
-                }}
-                disabled={isEnabled || isLoading || !apiAvailable}
-                className="h-8 text-xs"
-              />
-            </div>
-            <div className="flex-1 space-y-1">
-              <label
-                htmlFor="tray-range-to"
-                className="text-xs text-muted-foreground"
-              >
-                To
-              </label>
-              <Input
-                id="tray-range-to"
-                type="text"
-                value={rangeToDisplay}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (isValidNumberInput(value)) {
-                    setRangeToDisplay(value);
-                    if (value !== "") {
+                  }}
+                  onBlur={(e) => {
+                    const value = e.target.value;
+                    if (value === "") {
+                      setRangeToDisplay("0.1");
+                      setRangeTo(0.1);
+                      setStoredValue(STORAGE_KEYS.rangeTo, 0.1);
+                    } else {
                       const numValue = parseFloat(value);
                       if (!isNaN(numValue)) {
                         const newValue = Math.max(0.1, numValue);
+                        setRangeToDisplay(newValue.toString());
                         setRangeTo(newValue);
                         setStoredValue(STORAGE_KEYS.rangeTo, newValue);
                       }
                     }
-                  }
-                }}
-                onBlur={(e) => {
-                  const value = e.target.value;
-                  if (value === "") {
-                    setRangeToDisplay("0.1");
-                    setRangeTo(0.1);
-                    setStoredValue(STORAGE_KEYS.rangeTo, 0.1);
-                  } else {
-                    const numValue = parseFloat(value);
-                    if (!isNaN(numValue)) {
-                      const newValue = Math.max(0.1, numValue);
-                      setRangeToDisplay(newValue.toString());
-                      setRangeTo(newValue);
-                      setStoredValue(STORAGE_KEYS.rangeTo, newValue);
-                    }
-                  }
-                }}
-                disabled={isEnabled || isLoading || !apiAvailable}
-                className="h-8 text-xs"
-              />
+                  }}
+                  disabled={isEnabled || isLoading || !apiAvailable}
+                  className="h-8 text-xs"
+                />
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {/* Hubstaff Activity Level */}
+        {hubstaffMode && (
+          <div className="space-y-2">
+            <label className="text-xs font-medium text-foreground">
+              Activity level (%)
+            </label>
+            <div className="space-y-2">
+              <Slider
+                min={1}
+                max={100}
+                step={1}
+                value={[hubstaffRangeFrom, hubstaffRangeTo]}
+                onValueChange={(values: number[]) => {
+                  setHubstaffRangeFrom(values[0]);
+                  setHubstaffRangeTo(values[1]);
+                  setStoredValue(STORAGE_KEYS.hubstaffRangeFrom, values[0]);
+                  setStoredValue(STORAGE_KEYS.hubstaffRangeTo, values[1]);
+                }}
+                disabled={isEnabled || isLoading || !apiAvailable}
+                className="w-full"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{hubstaffRangeFrom}%</span>
+                <span>{hubstaffRangeTo}%</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Movement every {(100 / hubstaffRangeTo).toFixed(2)}-
+                {(100 / hubstaffRangeFrom).toFixed(2)} seconds
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Info */}
         <div className="pt-1 border-t border-border">
           <p className="text-xs text-muted-foreground">
             {isEnabled
-              ? keyboardActivity
-                ? `Will randomly move mouse or type a letter after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly`
+              ? hubstaffMode
+                ? keyboardActivity
+                  ? `Will randomly move mouse or type 2-5 letters after ${inactivitySeconds}s of inactivity with ${hubstaffRangeFrom}-${hubstaffRangeTo}% activity level`
+                  : `Moving mouse after ${inactivitySeconds}s of inactivity with ${hubstaffRangeFrom}-${hubstaffRangeTo}% activity level`
+                : keyboardActivity
+                ? `Will randomly move mouse or type 2-5 letters after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly`
                 : `Moving mouse after ${inactivitySeconds}s of inactivity, then every ${rangeFrom}-${rangeTo}s randomly`
               : "Enable to start moving mouse after inactivity"}
           </p>
